@@ -5,6 +5,11 @@ from plot_style import plt, species_lines
 from common import OUT
 
 rows = json.load(open(f"{OUT}/s7_stability.json"))
+for r in rows:   # strongly unstable runs leave the fitted range early: use overall growth
+    sg = np.array(r["sigma"])
+    if not np.isfinite(r["lam"]) and len(sg) > 3:
+        r["lam"] = float(np.log(sg[-1] / sg[1]) / (len(sg) - 2))
+        r["lam_fallback"] = True
 etas = sorted({r["eta"] for r in rows})
 dLs = sorted({r["dL"] for r in rows})
 dps = sorted({r["dphi_deg"] for r in rows})
