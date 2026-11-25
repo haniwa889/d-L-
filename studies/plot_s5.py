@@ -26,6 +26,7 @@ for e in etas:
     p = Params(beat_mode="load", eta=e, N_seg=rows[0]["N_seg"], L=22.0)
     om, Ts = motor_params(p)
     fsingle[e] = estimated_frequency(p, om, Ts)
+print("isolated-flagellum frequency:", {e: round(v, 2) for e, v in fsingle.items()})
 for r in rows:
     r["freq_rel"] = r["freq"] / fsingle[r["eta"]]
 for a, (key, lab) in zip(ax.ravel(), panels):
@@ -52,12 +53,19 @@ for e in etas:
         key = f"{x}_{e}_{seeds[0]}"
         t = ser[key + "_t"]; th = ser[key + "_theta"]
         n = th.shape[1]
-        a.pcolormesh(np.arange(n), t * 1e3, np.mod(th, 2 * np.pi), cmap="twilight",
-                     shading="nearest", vmin=0, vmax=2 * np.pi, rasterized=True)
+        z = np.exp(1j * (th - np.angle(np.exp(1j * th).mean(1))[:, None]))
+        kk = 10                                              # ≈ 5 beats moving average
+        zc = np.cumsum(np.r_[np.zeros((1, n)), z], axis=0)
+        z = (zc[kk:] - zc[:-kk]) / kk
+        t = t[kk // 2: kk // 2 + len(z)]
+        rel = np.angle(z)
+        a.pcolormesh(np.arange(n), t * 1e3, rel, cmap="twilight_shifted",
+                     shading="nearest", vmin=-np.pi, vmax=np.pi, rasterized=True)
         r = [r for r in rows if r["dL"] == x and r["eta"] == e and r["seed"] == seeds[0]][0]
         a.set_title(f"d/L={x:.2f}\nΔφ≈{r['dphi_from_winding']:+.0f}°, coh={r['dphi_coh']:.2f}", fontsize=9)
         a.set_xlabel("列番号 (x方向)"); a.grid(False)
     np.atleast_1d(ax)[0].set_ylabel("時間 [ms]")
-    fig.suptitle(f"位相の時空間図（η={e:g} mPa·s, seed {seeds[0]}）: 斜めの縞 = メタクロナル波")
+    fig.suptitle(f"平均位相からのずれ θ_j − ⟨θ⟩ の時空間図（η={e:g} mPa·s, seed {seeds[0]}）: "
+                 "一様な色 = 同期, 縞模様 = 波, まだら = 無秩序")
     fig.tight_layout(); fig.savefig(f"{OUT}/{tag}_kymo_eta{e:g}.png"); plt.close(fig)
 print("saved")
