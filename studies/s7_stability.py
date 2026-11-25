@@ -13,7 +13,7 @@ from common import OUT
 import argparse, json, time
 from multiprocessing import Pool
 import numpy as np
-from model import Params, TWO_PI
+from model import Params, TWO_PI, motor_params, phase_map
 from carpet import run_carpet, Carpet
 
 
@@ -36,7 +36,11 @@ def job(task):
                n_cycles=cyc, transient=0.0)
     rng = np.random.default_rng(seed)
     pert = rng.normal(0, amp, n); pert -= pert.mean()
-    phi0 = -TWO_PI * w * np.arange(n) / n + pert
+    # evenly spaced in the uniformly rotating phase θ of the isolated oscillator
+    om, Ts = motor_params(p)
+    g, th = phase_map(p, om, Ts)
+    theta0 = np.mod(-TWO_PI * w * np.arange(n) / n, TWO_PI)
+    phi0 = np.interp(theta0, th, g) + pert
     phi0 -= phi0.min()                                   # all phases ≥ 0 at t=0
     t0 = time.time()
     res = run_carpet(p, n, phi0=phi0)
@@ -47,9 +51,8 @@ def job(task):
     lag = (lag + per / 2) % per - per / 2                # wrap into one period
     sig = lag.std(1) / per                               # spread in units of the period
     m = np.arange(len(sig))
-    ok = (sig > 1e-6) & (sig < 0.05)                     # linear regime only
-    ok[:2] = False
-    lam = float(np.polyfit(m[ok], np.log(sig[ok]), 1)[0]) if ok.sum() >= 4 else np.nan
+    ok = (sig > 1e-7) & (sig < 0.2) & (m >= len(sig) // 4)     # skip initial transient
+    lam = float(np.polyfit(m[ok], np.log(sig[ok]), 1)[0]) if ok.sum() >= 6 else np.nan
     out = dict(dL=dL, eta=eta, w=w, dphi_deg=-360.0 * w / n, n=n, lam=lam,
                sigma=sig.tolist(), period=float(per), freq=float(1 / per),
                U_slip_mean=float(np.mean(res["Mz"][len(res["Mz"]) // 2:]) /
