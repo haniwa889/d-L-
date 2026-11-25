@@ -3,7 +3,9 @@ make_movie.py — side-by-side movie: {Volvox d/L, Pleodorina d/L} × {in-phase,
 (fixed kinematics, same L; flow speed colour map + velocity arrows; ε_sim in each title)
 
   python make_movie.py                       # → movies/compare_dL.mp4 (+ a still png)
-  python make_movie.py --dphi -90 --cycles 3
+  python make_movie.py --dphi -90 --cycles 3          # same lag for both species
+  python make_movie.py --dphi_volvox -14 --dphi_pleo -36 --out movies/literature
+      Volvox: k≈4.7 waves/meridian (Brumley et al. 2012), R≈150–200 µm → Δφ≈k·d/R≈12–16°
 """
 from __future__ import annotations
 
@@ -26,6 +28,8 @@ def main():
     ap.add_argument("--N", type=int, default=10)
     ap.add_argument("--N_seg", type=int, default=16)
     ap.add_argument("--dphi", type=float, default=-90.0, help="metachronal lag [deg]")
+    ap.add_argument("--dphi_volvox", type=float, default=None, help="lag for the Volvox row [deg]")
+    ap.add_argument("--dphi_pleo", type=float, default=None, help="lag for the Pleodorina row [deg]")
     ap.add_argument("--cycles", type=float, default=2.0)
     ap.add_argument("--fpc", type=int, default=36, help="frames per cycle")
     ap.add_argument("--slow", type=float, default=60.0, help="slow-motion factor for playback")
@@ -37,12 +41,14 @@ def main():
                   transient=0.0, frame_cycles=a.cycles, frames_per_cycle=a.fpc,
                   steps_per_cycle=a.fpc)
     f1 = analyze(run(base.copy(N=1, init_phase="inphase"), verbose=False))["f_mean"]
-    rows = [("Volvox", VOLVOX["d"] / VOLVOX["L"]), ("Pleodorina", PLEODORINA["d"] / PLEODORINA["L"])]
-    cols = [("in-phase (Δφ=0°)", dict(init_phase="inphase")),
-            (f"metachronal (Δφ={a.dphi:+.0f}°)", dict(init_phase="metachronal",
-                                                       dphi_mc=np.radians(a.dphi)))]
+    dv = a.dphi if a.dphi_volvox is None else a.dphi_volvox
+    dp = a.dphi if a.dphi_pleo is None else a.dphi_pleo
+    rows = [("Volvox", VOLVOX["d"] / VOLVOX["L"], dv), ("Pleodorina", PLEODORINA["d"] / PLEODORINA["L"], dp)]
     panels = []
-    for rname, dL in rows:
+    for rname, dL, dlag in rows:
+        cols = [("in-phase (Δφ=0°)", dict(init_phase="inphase")),
+                (f"metachronal (Δφ={dlag:+.0f}°)", dict(init_phase="metachronal",
+                                                         dphi_mc=np.radians(dlag)))]
         for cname, kw in cols:
             p = base.copy(d=dL * a.L, **kw)
             res = run(p, verbose=False)
