@@ -9,10 +9,10 @@ coherence, R_sync, slip velocity, beat frequency.
   python s5_carpet_load.py [--cycles 150] [--seeds 3] [--quick]
 Output: studies/out/s5_load.json  (+ phase time series in s5_load_series.npz)
 """
+from common import OUT, single_ref          # sets OMP/BLAS threads = 1 before numpy import
 import argparse, json, time
 from multiprocessing import Pool
 import numpy as np
-from common import OUT, single_ref
 from model import Params, TWO_PI, ETA_UNIT, to_theta, wrap
 from carpet import run_carpet, analyze_carpet, Carpet
 

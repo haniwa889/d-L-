@@ -174,6 +174,28 @@ def period_table(L: float, d: float, dy: float, n: int, R0: float, R1: float,
     return xs, zg, TP
 
 
+def blake_xz_pairs(dx, zf, zs, eps):
+    """x–z block of the regularized Blake kernel for point pairs in the same y-plane
+    (r_y = 0).  dx = x_f − x_s, zf field height, zs source height.  Returns xx, xz, zx, zz."""
+    e2 = eps * eps
+    r3 = zf - zs
+    R3 = zf + zs
+    r2 = dx * dx + r3 * r3
+    R2 = dx * dx + R3 * R3
+    d3 = (r2 + e2) ** -1.5
+    D3 = (R2 + e2) ** -1.5
+    D5 = D3 / (R2 + e2)
+    diag = (r2 + 2 * e2) * d3 - (R2 + 2 * e2) * D3
+    q = 6 * zs * zf * D5
+    dd = 2 * zs * zf * D3
+    c = 2 * zs * D3
+    gxx = dx * dx * d3 + diag - dx * dx * (D3 - q) - dd
+    gxz = dx * r3 * d3 - dx * R3 * (D3 + q) + c * dx
+    gzx = r3 * dx * d3 - R3 * dx * (D3 - q) + c * dx
+    gzz = r3 * r3 * d3 + diag - R3 * R3 * (D3 + q) + dd
+    return gxx, gxz, gzx, gzz
+
+
 class Carpet:
     """Periodic carpet (x-period P = n d, lateral spacing dy, lateral rows in phase).
     Reduced to x–z components (F_y = 0 by the y → −y symmetry)."""
@@ -200,6 +222,7 @@ class Carpet:
         self.xs, self.zg, TP = period_table(round(p.L, 4), round(p.d, 4), round(self.dy, 4), n,
                                             round(self.R0, 4), round(self.R1, 4), Xmax)
         self.TP = TP
+        self.TPf = np.ascontiguousarray(TP.reshape(-1, 4))
         self.mmax = int(math.ceil(self.R1 / self.P)) + 1
         same = self.owner[:, None] == self.owner[None, :]
         self.eps_same = np.where(same, self.eps, self.eps_x)
@@ -224,16 +247,19 @@ class Carpet:
         K = self.K
         x, z = X[:, 0], X[:, 2]
         G = np.zeros((K, K, 2, 2))
-        # --- near part of the own row (direct, regularized) ---
+        # --- near part of the own row (direct, regularized; only pairs with w > 0) ---
+        Gf = G.reshape(K * K, 4)
         for mx in range(-self.mmax, self.mmax + 1):
-            dxm = x[:, None] - x[None, :] - mx * self.P
-            w = _smooth_w(np.abs(dxm), self.R0, self.R1)
-            if not (w > 0).any():
+            dxm = (x[:, None] - x[None, :] - mx * self.P).ravel()
+            sel = np.nonzero(np.abs(dxm) < self.R1)[0]
+            if sel.size == 0:
                 continue
-            eps = self.eps_same if mx == 0 else self.eps_x
-            Gk = kernel(X, X + np.array([mx * self.P, 0, 0]), eps)
-            G[..., 0, 0] += w * Gk[..., 0, 0]; G[..., 0, 1] += w * Gk[..., 0, 2]
-            G[..., 1, 0] += w * Gk[..., 2, 0]; G[..., 1, 1] += w * Gk[..., 2, 2]
+            i, k = np.divmod(sel, K)
+            w = _smooth_w(np.abs(dxm[sel]), self.R0, self.R1)
+            eps = self.eps_same.ravel()[sel] if mx == 0 else self.eps_x
+            g = blake_xz_pairs(dxm[sel], z[i], z[k], eps)
+            for c_, gc in enumerate(g):
+                Gf[sel, c_] += w * gc
         # --- everything else from the period table (trilinear interpolation) ---
         dx = np.mod(x[:, None] - x[None, :], self.P)
         hx = self.xs[1] - self.xs[0]
@@ -246,12 +272,16 @@ class Carpet:
         iz = np.minimum((zc / hz).astype(int), self.zg.size - 2); tz = zc / hz - iz
         ia, ta = iz[:, None], tz[:, None]
         ib, tb = iz[None, :], tz[None, :]
-        TP = self.TP
-        acc = 0
+        TPf = self.TPf
+        nz = self.zg.size
+        acc = np.zeros((K, K, 4))
         for cx, wx in ((ix, 1 - tx), (ix1, tx)):
+            bx_ = cx * (nz * nz)
             for ca, wa in ((ia, 1 - ta), (ia + 1, ta)):
+                ba_ = bx_ + ca * nz
+                wxa = wx * wa
                 for cb, wb in ((ib, 1 - tb), (ib + 1, tb)):
-                    acc = acc + (wx * wa * wb)[..., None] * TP[cx, ca, cb]
+                    acc += (wxa * wb)[..., None] * np.take(TPf, ba_ + cb, axis=0)
         G[..., 0, 0] += acc[..., 0]; G[..., 0, 1] += acc[..., 1]
         G[..., 1, 0] += acc[..., 2]; G[..., 1, 1] += acc[..., 3]
         return G.transpose(0, 2, 1, 3).reshape(2 * K, 2 * K) / (8 * np.pi * self.p.eta_int)
