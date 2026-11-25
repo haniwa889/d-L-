@@ -1,0 +1,47 @@
+N=2  d=9.00 µm  L=22.00 µm  d/L=0.409  η=0.84 mPa·s
+beat_mode=fixed  wall_mode=anchored  init_phase=random
+mean beat frequency          : 30.00 Hz
+f_i (effective-stroke mean Fx) [pN] : 558.75 108.31
+mean f_i                     : 333.530 pN
+F_total = Σ f_i              : 667.060 pN
+<Σ Fx> over full cycle       : 13.051 pN
+dissipated power             : 0.7312 pW (= pN·µm/s ×1e-6)
+f_single (N=1)               : 81.149 pN   (freq 30.00 Hz)
+ε_sim = F_total/(N f_single) : 4.110
+Kuramoto R_sync (time mean)  : 0.405
+neighbour Δφ: circular mean  : -2.307 rad (-132.2°), coherence 1.000
+pattern                      : symplectic MW (wave along effective stroke)
+
+params:
+{
+ "N": 2,
+ "d": 9.0,
+ "L": 22.0,
+ "a": 0.125,
+ "N_seg": 20,
+ "eta": 0.84,
+ "eta_water": 0.84,
+ "theta0": 1.15,
+ "p_eff": 0.35,
+ "bend_width": 0.25,
+ "beat_mode": "fixed",
+ "f_fixed": 30.0,
+ "f_free": 50.0,
+ "f_water": 30.0,
+ "T_stall": null,
+ "wall_mode": "anchored",
+ "R_body": 200.0,
+ "zeta_body": null,
+ "init_phase": "random",
+ "dphi_mc": -0.7853981633974483,
+ "seed": 0,
+ "eps": null,
+ "eps_inter_factor": 1.0,
+ "dt": null,
+ "steps_per_cycle": 60,
+ "n_cycles": 4.0,
+ "transient": 0.3,
+ "integrator": "rk2",
+ "frame_cycles": 2.0,
+ "frames_per_cycle": 30
+}
