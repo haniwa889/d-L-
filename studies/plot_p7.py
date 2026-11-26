@@ -15,7 +15,17 @@ LS = {ff: s for ff, s in zip(ffs, ("-", "--", ":"))}
 
 
 def lam_eff(r):
-    return (r["lam"], False) if np.isfinite(r["lam"]) else (r["lam0"], True)
+    """(λ, strongly_unstable).  If the late-time fit failed because the lag spread
+    saturated (≥ 0.2 period), fit the growth phase from the start until saturation."""
+    if np.isfinite(r["lam"]):
+        return r["lam"], False
+    s = np.asarray(r["sigma"])
+    sat = np.nonzero(s >= 0.2)[0]
+    k = sat[0] if len(sat) else len(s)
+    if k >= 3:
+        m = np.arange(1, k)
+        return float(np.polyfit(m, np.log(np.maximum(s[1:k], 1e-9)), 1)[0]), True
+    return r["lam0"], True
 
 
 fig, ax = plt.subplots(1, 3, figsize=(16, 5), gridspec_kw=dict(width_ratios=[1, 1, 0.9]))
