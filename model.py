@@ -44,6 +44,13 @@ wall_mode = "swimming" : wall + bases translate with U (x).  Flagella velocities
 from __future__ import annotations
 
 import math
+import sys
+if sys.platform == "win32":          # Windows consoles/redirects default to cp932: print µ, ², … safely
+    for _st in (sys.stdout, sys.stderr):
+        try:
+            _st.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
 from dataclasses import dataclass, field, asdict, replace
 from functools import lru_cache
 

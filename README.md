@@ -67,6 +67,17 @@ python sweep.py --replot sweep_results/load_anchored_N10
 --f_water --T_stall --R_body --zeta_body --init_phase {random,inphase,metachronal} --dphi_mc --seed
 --theta0 --p_eff --eps --eps_inter --y_stagger`。
 
+## Windows で動かす
+
+1. Python 3.10 以上を入れる（python.org のインストーラで「Add python.exe to PATH」にチェック）。
+2. このフォルダで `py -m pip install -r requirements.txt`。
+3. 実行は `py model.py`、`cd studies` してから `py p7_stability_species.py` など（Linux の `python` を `py` に読み替える）。
+
+- 図の日本語は Yu Gothic / Meiryo / MS Gothic のどれかで表示される（`studies/plot_style.py`）。
+- 2 次元カーペットの格子和の表は初回に計算して `.kernel_cache/` に保存する。1 条件あたり数分かかり、全部で 1 GB 程度になる。2 回目からは再利用される。
+- 並列計算は `multiprocessing.Pool(4)`。各スクリプトは `if __name__ == "__main__":` で守られているので Windows でもそのまま動く。
+- 実測データを使う検証（`studies/p*_*.py`）は、`studies/private/` に `sim_compare_data.csv` と `colony.json` が必要。このフォルダは git の管理外。
+
 ## 注意（簡略化）
 
 * 群体表面の曲率・2 次元配列・鞭毛の弾性は考えていない（波形は運動学的に与え、位相の速さだけが流体負荷で変わる）。

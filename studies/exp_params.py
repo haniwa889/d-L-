@@ -13,7 +13,7 @@ CSV = os.path.join(PRIV, "sim_compare_data.csv")
 
 import json
 # colony radius r [µm] and number of cells N (user's values) — private, git-ignored
-COLONY = json.load(open(os.path.join(PRIV, "colony.json")))
+COLONY = json.load(open(os.path.join(PRIV, "colony.json"), encoding="utf-8"))
 
 
 def _f(x):
@@ -24,7 +24,7 @@ def _f(x):
 
 
 def load_rows():
-    with open(CSV) as fh:
+    with open(CSV, encoding="utf-8-sig", newline="") as fh:
         return [{k: (_f(v) if k != "species" else v) for k, v in r.items()} for r in csv.DictReader(fh)]
 
 

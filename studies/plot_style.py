@@ -11,7 +11,10 @@ for f in ("/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf",
     except Exception:
         pass
 plt.rcParams.update({
-    "font.family": ["IPAPGothic", "IPAGothic", "DejaVu Sans"],
+    # Japanese font: Linux (IPA), Windows (Yu Gothic / Meiryo / MS Gothic), macOS (Hiragino)
+    "font.family": [n for n in ("IPAPGothic", "IPAGothic", "Yu Gothic", "Meiryo", "MS Gothic",
+                                "Hiragino Sans", "Noto Sans CJK JP")
+                    if n in {f.name for f in font_manager.fontManager.ttflist}] + ["DejaVu Sans"],
     "axes.unicode_minus": False,
     "axes.grid": True, "grid.alpha": 0.3,
     "figure.dpi": 110, "savefig.dpi": 140,

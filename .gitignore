@@ -5,3 +5,4 @@ results/**/run.npz
 .kernel_cache/
 studies/out/s2_parts/
 studies/private/
+HANDOFF.md
