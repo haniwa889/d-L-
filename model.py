@@ -77,6 +77,11 @@ class Params:
     theta0: float = 1.15        # stroke amplitude (angle from wall normal) [rad]
     p_eff: float = 0.35         # fraction of the cycle spent in the effective stroke
     bend_width: float = 0.25    # half-width of the propagating bend / L
+    waveform: str = "rod"       # "rod" (rigid effective stroke + propagating bend) | "delay"
+    Theta_b: float = 1.8        # "delay": total sweep of the basal tangent angle [rad]
+    lag: float = 0.15           # "delay": phase delay base → tip (fraction of a cycle)
+    center: float = 0.0         # "delay": mean tangent angle (tilt of the beat) [rad]
+    taper: float = 1.0          # "delay": amplitude at the tip / amplitude at the base
     # beat dynamics
     beat_mode: str = "fixed"    # "fixed" | "load"
     f_fixed: float = 30.0       # beat frequency in "fixed" mode [Hz]
@@ -264,8 +269,21 @@ def get_eps(p: Params) -> float:
 _SUB = 4  # sub-samples per segment for integrating the tangent angle (must be even)
 
 
+def _base_angle(u, p: Params):
+    """'delay' waveform: basal tangent angle, fast forward sweep (u < p_eff), slow return."""
+    u = np.mod(u, 1.0)
+    pe = p.p_eff
+    a = np.where(u < pe, -np.cos(np.pi * u / pe),
+                 np.cos(np.pi * (u - pe) / (1 - pe)))
+    return p.center + 0.5 * p.Theta_b * a
+
+
 def tangent_angle(s: np.ndarray, phi: np.ndarray, p: Params) -> np.ndarray:
     """ψ(s, φ) for arc length s (M,) and phases φ (N,) → (N, M)."""
+    if p.waveform == "delay":
+        u = np.mod(phi, TWO_PI)[:, None] / TWO_PI
+        env = 1.0 - (1.0 - p.taper) * s[None, :] / p.L
+        return p.center + env * (_base_angle(u - p.lag * s[None, :] / p.L, p) - p.center)
     u = np.mod(phi, TWO_PI)[:, None] / TWO_PI
     th = p.theta0
     # effective stroke: straight rod rotating -θ0 → +θ0
@@ -312,6 +330,22 @@ def shape_and_tangent(phi: np.ndarray, p: Params, dphi: float = 1e-5):
 
 def in_effective(phi: np.ndarray, p: Params) -> np.ndarray:
     return np.mod(phi, TWO_PI) < TWO_PI * p.p_eff
+
+
+def chord_sweep(p: Params, n: int = 400) -> float:
+    """Total angular sweep of the base→tip chord over a cycle [rad]."""
+    sh = shape_full(np.linspace(0, TWO_PI, n, endpoint=False), p)
+    ang = np.arctan2(sh[:, -1, 0], sh[:, -1, 1])
+    return float(ang.max() - ang.min())
+
+
+def calibrate_lag(p: Params, target_chord: float) -> float:
+    """'delay' waveform: lag λ such that the chord sweep equals target_chord [rad]."""
+    from scipy.optimize import brentq
+    f = lambda lam: chord_sweep(p.copy(lag=lam)) - target_chord
+    if f(0.0) < 0:
+        return 0.0
+    return float(brentq(f, 0.0, 0.95, xtol=1e-4))
 
 
 # =============================================================================

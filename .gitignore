@@ -4,3 +4,4 @@ results/**/run.npz
 *.log
 .kernel_cache/
 studies/out/s2_parts/
+studies/private/
