@@ -40,7 +40,7 @@ for a, sp in zip(ax[:2], ("Volvox", "Pleodorina")):
             strong = [lam_eff(r)[1] for r in rr]
             yc = np.clip(y, -0.1, 0.1)
             a.plot(x, yc, LS[ff], color=CM[e], marker="o", ms=4,
-                   label=f"η/η_水={e/0.84:.1f}, f_free={ff:g} Hz (水中 {rr[0]['freq']:.0f}→ここで{np.mean([r['freq'] for r in rr]):.0f} Hz)")
+                   label=f"η/η_水={e/0.84:.1f}, f_free={ff:g} Hz（拍動 {np.mean([r['freq'] for r in rr]):.0f} Hz、負荷 {np.mean([r['load_frac'] for r in rr]):.2f}）")
             for xi, yi, s in zip(x, yc, strong):
                 if s:
                     a.plot(xi, yi, "x", color=CM[e], ms=9, mew=2)
@@ -51,22 +51,28 @@ for a, sp in zip(ax[:2], ("Volvox", "Pleodorina")):
     a.axhline(0, color="k", lw=0.8)
     a.set_ylim(-0.1, 0.1)
     a.set_xlabel("波の隣どうしの位相差 Δφ [°]（負＝有効打方向の波）")
-    a.set_ylabel("乱れの成長率 λ [1/拍動]（負＝安定、×＝数拍動で崩壊、±0.1 で表示を打ち切り）")
+    a.set_ylabel("乱れの成長率 λ [1/拍動]\n（負＝安定、×＝数拍動で崩壊、±0.1 で打ち切り）")
     a.set_title(JP[sp], fontsize=11)
     a.legend(fontsize=6.5, loc="lower left")
-# summary: number of stable / strongly unstable waves vs η
+# summary: number of stable waves vs motor load fraction 1 − f/f_free
 b = ax[2]
+MK = {50.0: "o", 100.0: "D"}
 for sp, c in (("Volvox", "tab:green"), ("Pleodorina", "tab:purple")):
-    for ff in ffs:
-        ns = [summ[f"{sp} η={e} f_free={ff}"]["n_stable"] for e in etas]
-        nu = [summ[f"{sp} η={e} f_free={ff}"]["n_strong_unstable"] for e in etas]
-        x = np.array(etas) / 0.84
-        b.plot(x, ns, "o" + LS[ff], color=c, label=f"{JP[sp]} 安定な波の数 (f_free={ff:g})")
-        b.plot(x, nu, "s" + LS[ff], color=c, alpha=0.45, label=f"{JP[sp]} すぐ崩れる波の数 (f_free={ff:g})")
-b.set_xlabel("η / η_水"); b.set_ylabel(f"波の数（調べた {len({r['w'] for r in rows})} 種類のうち）")
-b.legend(fontsize=6.5)
-fig.suptitle("P7: 各種の配置・波形で、粘性を上げたときに協調した波（メタクロナル波）が安定に保てるか")
-fig.tight_layout(); fig.savefig(os.path.join(PRIV, f"{tag}.png")); plt.close(fig)
+    pts = sorted((summ[f"{sp} η={e} f_free={ff}"]["load_frac"], summ[f"{sp} η={e} f_free={ff}"]["n_stable"], ff, e)
+                 for e in etas for ff in ffs)
+    b.plot([p[0] for p in pts], [p[1] for p in pts], "-", color=c, alpha=0.4)
+    for lf, ns, ff, e in pts:
+        b.plot(lf, ns, MK.get(ff, "s"), color=c, ms=8, mfc=c if ff == ffs[0] else "w")
+        b.annotate(f"{e/0.84:.1f}", (lf, ns), textcoords="offset points", xytext=(4, 4), fontsize=7, color=c)
+    b.plot([], [], "-", color=c, label=JP[sp])
+for ff in ffs:
+    b.plot([], [], MK.get(ff, "s"), color="0.3", mfc="0.3" if ff == ffs[0] else "w", label=f"f_free = {ff:g} Hz")
+b.set_xlabel("モーターの負荷の割合 1 − f/f_free（粘性で増える）")
+b.set_ylabel(f"安定な波の数（{len({r['w'] for r in rows})} 種類中）")
+b.set_title("数字 = η/η_水", fontsize=9)
+b.legend(fontsize=8)
+fig.suptitle("P7: 各種の配置・波形で、粘性を上げたときに協調した波（メタクロナル波）が安定に保てるか", y=1.02)
+fig.tight_layout(); fig.savefig(os.path.join(PRIV, f"{tag}.png"), bbox_inches="tight"); plt.close(fig)
 json.dump(summ, open(os.path.join(PRIV, f"{tag}_summary.json"), "w"), indent=1)
 for k, v in summ.items():
     print(k, "stable", v["n_stable"], "strong-unstable", v["n_strong_unstable"],
