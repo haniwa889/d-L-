@@ -304,7 +304,8 @@ class Carpet:
 
 
 # -----------------------------------------------------------------------------
-def run_carpet(p: Params, n: int, phi0=None, dy=None, verbose=False, store_every: int = 0, **kw):
+def run_carpet(p: Params, n: int, phi0=None, dy=None, verbose=False, store_every: int = 0,
+               noise_D: float = 0.0, noise_seed: int = 0, **kw):
     """Time integration on the periodic carpet.  p.beat_mode: 'fixed' | 'load'.
     phi0: initial phases of the n columns (default from p.init_phase)."""
     c = Carpet(p, n, dy=dy, **kw)
@@ -325,6 +326,7 @@ def run_carpet(p: Params, n: int, phi0=None, dy=None, verbose=False, store_every
         else:
             phi0 = np.random.default_rng(p.seed).uniform(0, TWO_PI, n)
     phi = np.array(phi0, float)
+    _rng = np.random.default_rng(noise_seed + 777)
     ns = p.N_seg
     rec = dict(t=np.arange(nst) * dt, phi=np.zeros((nst, n)), phidot=np.zeros((nst, n)),
                Fx=np.zeros((nst, c.nf)), Fz=np.zeros((nst, c.nf)), Q=np.zeros((nst, n)),
@@ -345,6 +347,8 @@ def run_carpet(p: Params, n: int, phi0=None, dy=None, verbose=False, store_every
             k1 = r["phidot"]
             k2 = c.solve(phi + dt * k1, omega0=omega0, T_stall=T_stall)["phidot"]
             phi = phi + 0.5 * dt * (k1 + k2)
+            if noise_D > 0:                       # phase diffusion (Euler–Maruyama)
+                phi = phi + np.sqrt(2 * noise_D * dt) * _rng.normal(size=n)
         if verbose and s % max(1, nst // 10) == 0:
             print(f"  {s}/{nst}  f={r['phidot'].mean()/TWO_PI:.2f} Hz")
     pm = phase_map(p, omega0, T_stall) if p.beat_mode == "load" else None
